@@ -1,36 +1,30 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {EventorHarness} from "./EventorHarness.sol";
 
 IERC20 constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 
-contract Eventor {
-    bool transient alreadyEntered;
-    bytes32 transient paymentId;
-    address transient to;
-    uint256 transient balanceBefore;
-    event ConfirmedPayment(address indexed to, uint256 indexed amount, bytes32 paymentId);
+contract Eventor is EventorHarness {
+    modifier onlyEOA() {
+        require(msg.sender == tx.origin, OnlyEOA());
+        _;
+    }
 
-    error InvalidAmount(uint256 expected, uint256 actual);
-
-    function execute(
+    function commit(
         address _to,
+        uint256 _declaredAmount,
         bytes32 _paymentId
-    ) external {
-        // require(msg.sender == tx.origin, "Only EOA");
-        if (alreadyEntered) {
-            require(paymentId == _paymentId, "Invalid paymentId");
-            require(to == _to, "Invalid to");
-            uint256 amount = USDC.balanceOf(_to) - balanceBefore;
-            require(amount > 0, "No funds received");
-            // uint256 amountFromData = uint256(bytes32(msg.data[40:52]));
-            // require(amount == amountFromData, InvalidAmount(amount, amountFromData));
-            emit ConfirmedPayment(to, amount, paymentId);
-        }
-        alreadyEntered = true;
-        paymentId = _paymentId;
-        to = _to;
-        balanceBefore = USDC.balanceOf(_to);
+    ) public override onlyEOA {
+        super.commit(_to, _declaredAmount, _paymentId);
+    }
+
+    function reveal(
+        address _to,
+        uint256 _declaredAmount,
+        bytes32 _paymentId
+    ) public override onlyEOA {
+        super.reveal(_to, _declaredAmount, _paymentId);
     }
 }

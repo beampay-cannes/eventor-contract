@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+// Deployment command:
+// forge script script/DeployEventor.s.sol --rpc-url <RPC_URL> --broadcast --verify --etherscan-api-key <ETHERSCAN_API_KEY>
+
 import {Script, console} from "forge-std/Script.sol";
 import {Eventor} from "../src/Eventor.sol";
 

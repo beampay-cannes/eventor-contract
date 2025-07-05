@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test, console} from "forge-std/Test.sol";
-import {Eventor} from "../src/Eventor.sol";
+import {Test} from "forge-std/Test.sol";
+import {EventorHarness} from "src/EventorHarness.sol";
+import {Eventor} from "src/Eventor.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-IERC20 constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+IERC20 constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48); // on ethereum mainnet
 
 // Helper contract to execute all operations in one transaction
 contract PaymentExecutor {
@@ -16,18 +17,18 @@ contract PaymentExecutor {
         bytes32 paymentId
     ) external {
         // First call to execute - sets up transient state
-        Eventor(eventor).execute(recipient, paymentId);
+        EventorHarness(eventor).commit(recipient, usdcAmount, paymentId);
         
         // Transfer USDC between the calls
         IERC20(USDC).transfer(recipient, usdcAmount);
         
         // Second call to execute - validates and emits event
-        Eventor(eventor).execute(recipient, paymentId);
+        EventorHarness(eventor).reveal(recipient, usdcAmount, paymentId);
     }
 }
 
 contract EventorTest is Test {
-    Eventor public eventor;
+    EventorHarness public eventor;
     PaymentExecutor public paymentExecutor;
     
     address public constant USDC_HOLDER = 0x87555C010f5137141ca13b42855d90a108887005;
@@ -47,7 +48,7 @@ contract EventorTest is Test {
         vm.createSelectFork("https://ethereum-rpc.publicnode.com");
         
         // Deploy contracts
-        eventor = new Eventor();
+        eventor = new EventorHarness();
         paymentExecutor = new PaymentExecutor();
         
         // Give recipient some initial ETH for the balance check
@@ -70,7 +71,7 @@ contract EventorTest is Test {
         
         // Expect the ConfirmedPayment event (amount will be 0 since no ETH transferred)
         vm.expectEmit(true, true, false, true);
-        emit Eventor.ConfirmedPayment(RECIPIENT, PAYMENT_AMOUNT, paymentId);
+        emit EventorHarness.ConfirmedPayment(RECIPIENT, PAYMENT_AMOUNT, paymentId);
         
         // Execute the payment (all operations in one transaction)
         paymentExecutor.executePayment(
@@ -88,6 +89,20 @@ contract EventorTest is Test {
         uint128 extractedAmount = uint128(bytes16(paymentId));
         assertEq(extractedAmount, PAYMENT_AMOUNT, "PaymentId should contain USDC amount in first 16 bytes");
         
+        vm.stopPrank();
+    }
+
+    function test_EventorOnlyEOA() public {
+        vm.startPrank(USDC_HOLDER, USDC_HOLDER); // tx.origin = USDC_HOLDER
+        USDC.transfer(address(paymentExecutor), PAYMENT_AMOUNT);
+        Eventor notHarnessEventor = new Eventor();
+        vm.expectRevert(EventorHarness.OnlyEOA.selector);
+        paymentExecutor.executePayment(
+            address(notHarnessEventor),
+            RECIPIENT,
+            PAYMENT_AMOUNT,
+            createPaymentId(PAYMENT_AMOUNT)
+        );
         vm.stopPrank();
     }
 } 
