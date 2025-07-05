@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 // Deployment command:
-// forge script script/DeployEventor.s.sol --rpc-url https://eth.llamarpc.com --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY
+// forge script script/DeployEventor.s.sol --rpc-url https://ethereum-rpc.publicnode.com --broadcast --verify --etherscan-api-key $ETHERSCAN_KEY
 
 import {Script, console} from "forge-std/Script.sol";
 import {Eventor} from "../src/Eventor.sol";

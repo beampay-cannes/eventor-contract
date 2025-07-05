@@ -6,8 +6,7 @@ import {IEventor} from "src/IEventor.sol";
 
 IERC20 constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 
-// This contract is used to test the Eventor contract.
-// It is not used in the production code.
+// This contract is used to test the Eventor contract as it doesn't have onlyEOA modifier.
 contract EventorHarness is IEventor {
     bool transient alreadyEntered;
     bytes32 transient paymentId;
@@ -49,7 +48,7 @@ contract EventorHarness is IEventor {
         require(amount > 0, NoFundsReceived());
         require(amount == declaredAmount, InvalidDeclaredAmount(declaredAmount, amount));   
         require(declaredAmount == _declaredAmount, InvalidDeclaredAmount(declaredAmount, _declaredAmount));
-        
+
         emit ConfirmedPayment(to, amount, paymentId);
     }
 }
