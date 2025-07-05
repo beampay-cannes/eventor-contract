@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {EventorHarness} from "src/EventorHarness.sol";
 import {Eventor} from "src/Eventor.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IEventor} from "src/IEventor.sol";
 
 IERC20 constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48); // on ethereum mainnet
 
@@ -71,7 +72,7 @@ contract EventorTest is Test {
         
         // Expect the ConfirmedPayment event (amount will be 0 since no ETH transferred)
         vm.expectEmit(true, true, false, true);
-        emit EventorHarness.ConfirmedPayment(RECIPIENT, PAYMENT_AMOUNT, paymentId);
+        emit IEventor.ConfirmedPayment(RECIPIENT, PAYMENT_AMOUNT, paymentId);
         
         // Execute the payment (all operations in one transaction)
         paymentExecutor.executePayment(
@@ -96,7 +97,7 @@ contract EventorTest is Test {
         vm.startPrank(USDC_HOLDER, USDC_HOLDER); // tx.origin = USDC_HOLDER
         USDC.transfer(address(paymentExecutor), PAYMENT_AMOUNT);
         Eventor notHarnessEventor = new Eventor();
-        vm.expectRevert(EventorHarness.OnlyEOA.selector);
+        vm.expectRevert(IEventor.OnlyEOA.selector);
         paymentExecutor.executePayment(
             address(notHarnessEventor),
             RECIPIENT,
