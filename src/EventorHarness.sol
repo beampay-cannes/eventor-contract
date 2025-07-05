@@ -4,51 +4,65 @@ pragma solidity ^0.8.30;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IEventor} from "src/IEventor.sol";
 
-IERC20 constant USDC = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-
 // This contract is used to test the Eventor contract as it doesn't have onlyEOA modifier.
 contract EventorHarness is IEventor {
-    bool transient alreadyEntered;
+    bool transient alreadyCommitted;
+    bool transient alreadyRevealed;
     bytes32 transient paymentId;
     address transient to;
     uint256 transient balanceBefore;
     uint256 transient declaredAmount;
 
-    modifier onlyEntered() {
-        require(alreadyEntered, NotEntered());
+    IERC20 public immutable USDC;
+
+    constructor(IERC20 _USDC) {
+        USDC = _USDC;
+    }
+
+    modifier onlyCommitted() {
+        require(alreadyCommitted, NotEntered());
         _;
     }
 
-    modifier onlyNotEntered() {
-        require(!alreadyEntered, AlreadyEntered());
+    modifier onlyNotCommitted() {
+        require(!alreadyCommitted, AlreadyCommitted());
         _;
     }
 
-    function commit(
-        address _to,
-        uint256 _declaredAmount,
-        bytes32 _paymentId
-    ) public onlyNotEntered virtual {
-        alreadyEntered = true;
-        paymentId = _paymentId;
+    modifier onlyNotRevealed() {
+        require(!alreadyRevealed, AlreadyRevealed());
+        _;
+    }
+
+    function commit(address _to, uint256 _declaredAmount, string memory _paymentId)
+        public
+        virtual
+        onlyNotCommitted
+        onlyNotRevealed
+    {
+        alreadyCommitted = true;
+        paymentId = keccak256(abi.encodePacked(_paymentId));
         to = _to;
         balanceBefore = USDC.balanceOf(_to);
         declaredAmount = _declaredAmount;
     }
 
-    function reveal(
-        address _to,
-        uint256 _declaredAmount,
-        bytes32 _paymentId
-    ) public onlyEntered virtual {
-        require(paymentId == _paymentId, InvalidPaymentId());
+    function reveal(address _to, uint256 _declaredAmount, string memory _paymentId)
+        public
+        virtual
+        onlyCommitted
+        onlyNotRevealed
+    {
+        require(paymentId == keccak256(abi.encodePacked(_paymentId)), InvalidPaymentId());
         require(to == _to, InvalidTo());
 
         uint256 amount = USDC.balanceOf(_to) - balanceBefore;
         require(amount > 0, NoFundsReceived());
-        require(amount == declaredAmount, InvalidDeclaredAmount(declaredAmount, amount));   
+        require(amount == declaredAmount, InvalidDeclaredAmount(declaredAmount, amount));
         require(declaredAmount == _declaredAmount, InvalidDeclaredAmount(declaredAmount, _declaredAmount));
 
-        emit ConfirmedPayment(to, amount, paymentId);
+        alreadyRevealed = true;
+
+        emit ConfirmedPayment(to, amount, _paymentId);
     }
 }
